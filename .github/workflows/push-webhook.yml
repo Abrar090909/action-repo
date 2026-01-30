@@ -1,0 +1,46 @@
+# GitHub Actions - PUSH Event Workflow
+# Triggers when code is pushed to any branch
+# Sends webhook to the Flask receiver endpoint
+
+name: Push Event Webhook
+
+on:
+  push:
+    branches:
+      - '**'  # Trigger on all branches
+
+jobs:
+  send-push-webhook:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Extract branch name
+        id: extract_branch
+        run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+      
+      - name: Generate unique request ID
+        id: request_id
+        run: echo "id=$(uuidgen)" >> $GITHUB_OUTPUT
+      
+      - name: Send webhook notification
+        run: |
+          curl -X POST ${{ secrets.WEBHOOK_URL }} \
+            -H "Content-Type: application/json" \
+            -d '{
+              "event_type": "push",
+              "author": "${{ github.actor }}",
+              "branch": "${{ steps.extract_branch.outputs.branch }}",
+              "timestamp": "${{ github.event.head_commit.timestamp }}",
+              "request_id": "${{ steps.request_id.outputs.id }}"
+            }'
+      
+      - name: Log webhook sent
+        run: |
+          echo "✓ Webhook sent successfully"
+          echo "Event: PUSH"
+          echo "Author: ${{ github.actor }}"
+          echo "Branch: ${{ steps.extract_branch.outputs.branch }}"
+          echo "Timestamp: ${{ github.event.head_commit.timestamp }}"

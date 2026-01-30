@@ -1,0 +1,44 @@
+# GitHub Actions - MERGE Event Workflow (Bonus Points!)
+# Triggers when a pull request is successfully merged
+# Sends webhook to the Flask receiver endpoint
+
+name: Merge Event Webhook
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  send-merge-webhook:
+    # Only run if the PR was actually merged (not just closed)
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Generate unique request ID
+        id: request_id
+        run: echo "id=$(uuidgen)" >> $GITHUB_OUTPUT
+      
+      - name: Send webhook notification
+        run: |
+          curl -X POST ${{ secrets.WEBHOOK_URL }} \
+            -H "Content-Type: application/json" \
+            -d '{
+              "event_type": "merge",
+              "author": "${{ github.event.pull_request.merged_by.login }}",
+              "from_branch": "${{ github.head_ref }}",
+              "to_branch": "${{ github.base_ref }}",
+              "timestamp": "${{ github.event.pull_request.merged_at }}",
+              "request_id": "${{ steps.request_id.outputs.id }}"
+            }'
+      
+      - name: Log webhook sent
+        run: |
+          echo "✓ Webhook sent successfully"
+          echo "Event: MERGE"
+          echo "Merged by: ${{ github.event.pull_request.merged_by.login }}"
+          echo "From: ${{ github.head_ref }} → To: ${{ github.base_ref }}"
+          echo "Merged at: ${{ github.event.pull_request.merged_at }}"

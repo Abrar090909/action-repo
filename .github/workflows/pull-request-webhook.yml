@@ -1,0 +1,44 @@
+# GitHub Actions - PULL REQUEST Event Workflow
+# Triggers when a pull request is opened, closed, or updated
+# Sends webhook to the Flask receiver endpoint
+
+name: Pull Request Event Webhook
+
+on:
+  pull_request:
+    types: [opened, closed, synchronize, reopened]
+
+jobs:
+  send-pr-webhook:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Generate unique request ID
+        id: request_id
+        run: echo "id=$(uuidgen)" >> $GITHUB_OUTPUT
+      
+      - name: Send webhook notification
+        run: |
+          curl -X POST ${{ secrets.WEBHOOK_URL }} \
+            -H "Content-Type: application/json" \
+            -d '{
+              "event_type": "pull_request",
+              "author": "${{ github.actor }}",
+              "action": "${{ github.event.action }}",
+              "from_branch": "${{ github.head_ref }}",
+              "to_branch": "${{ github.base_ref }}",
+              "timestamp": "${{ github.event.pull_request.updated_at }}",
+              "request_id": "${{ steps.request_id.outputs.id }}"
+            }'
+      
+      - name: Log webhook sent
+        run: |
+          echo "✓ Webhook sent successfully"
+          echo "Event: PULL REQUEST"
+          echo "Action: ${{ github.event.action }}"
+          echo "Author: ${{ github.actor }}"
+          echo "From: ${{ github.head_ref }} → To: ${{ github.base_ref }}"
+          echo "Timestamp: ${{ github.event.pull_request.updated_at }}"
